@@ -1,0 +1,29 @@
+{
+  "name": "lockbase",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "tape": "^5.0.1"
+  },
+  "dependencies": {
+    "uuid": "^8.3.1"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/markwylde/lockbase.git"
+  },
+  "bugs": {
+    "url": "https://github.com/markwylde/lockbase/issues"
+  },
+  "homepage": "https://github.com/markwylde/lockbase#readme",
+  "description": ""
+}
