@@ -7,7 +7,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0",
   "devDependencies": {
     "tape": "^5.0.1"
   },
@@ -25,5 +25,5 @@
     "url": "https://github.com/markwylde/lockbase/issues"
   },
   "homepage": "https://github.com/markwylde/lockbase#readme",
-  "description": ""
+  "description": "A queued locking library useful for databases"
 }
