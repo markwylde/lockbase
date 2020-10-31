@@ -35,9 +35,19 @@ function lockbase () {
     sync(locks, queue);
   }
 
+  function check (keys) {
+    const existingLocks = keys
+      .map(key => doesLockExist(locks, key))
+      .filter(key => !!key)
+      .length;
+
+    return existingLocks > 0;
+  }
+
   return {
     add,
-    remove
+    remove,
+    check
   };
 }
 

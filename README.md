@@ -17,6 +17,8 @@ const lockbase = require('lockbase');
 const locks = lockbase();
 
 locks.add(['users']).then(lock => {
+  const isLocked = locks.check(['users.email'])
+  console.log(isLocked) // === true
   setTimeout(() => locks.remove(lock), 500);
 });
 

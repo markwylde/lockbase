@@ -48,3 +48,19 @@ test('field based lock works', t => {
     t.pass();
   });
 });
+
+test('check for locks', t => {
+  t.plan(2);
+
+  const locks = lockbase();
+
+  locks.add(['users.email']).then(lock => {
+    const lockedBefore = locks.check(['users.email']);
+    t.ok(lockedBefore);
+
+    locks.remove(lock);
+
+    const lockedAfter = locks.check(['users.email']);
+    t.notOk(lockedAfter);
+  });
+});
