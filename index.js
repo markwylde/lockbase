@@ -21,9 +21,9 @@ function lockbase () {
   const locks = [];
   const queue = [];
 
-  function add (keys) {
+  function add (keys, id) {
     return new Promise(resolve => {
-      const id = uuid();
+      id = id || uuid();
       queue.push({ id, keys, resolve });
       sync(locks, queue);
     });

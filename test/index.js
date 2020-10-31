@@ -18,6 +18,21 @@ test('top level lock works', t => {
   });
 });
 
+test('top level lock with custom id works', t => {
+  t.plan(2);
+
+  const locks = lockbase();
+
+  locks.add(['users'], 1).then(lock => {
+    t.pass();
+    setTimeout(() => locks.remove(1), 500);
+  });
+  locks.add(['users']).then(lock => {
+    t.pass();
+    locks.remove(lock);
+  });
+});
+
 test('field based lock blocks', t => {
   t.plan(2);
 
