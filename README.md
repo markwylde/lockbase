@@ -1,4 +1,4 @@
-# puzed-api
+# loclbase
 ![Node.js Test Runner](https://github.com/markwylde/lockbase/workflows/Node.js%20Test%20Runner/badge.svg)
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/markwylde/lockbase)
 [![GitHub package.json version](https://img.shields.io/github/package-json/v/markwylde/lockbase)](https://github.com/markwylde/lockbase/releases)
