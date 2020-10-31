@@ -15,19 +15,23 @@ npm install --save lockbase
 The `lockbase` module returns an object with three methods:
 
 **add -> Array(keys) -> id -> id**
+
 To add a lock, run the `add` function with an array of keys. If the second `id` argument
 is left blank, then a uuid will be used.
 
 **remove -> id**
+
 To remove a lock, run the `remove` function with the id of the lock.
 
 **check -> Array(keys) -> boolean**
+
 To check if a lock exists, run the `check` function with an array of keys. If *any* of the keys
 are locked, it will return `true`.
 
 **keys** follow dot notation and will match partially.
-`users` will match `users`, `users.email`, `users.anythingElse`
-`users.email` will match `users.email` and potentially `users.email.subKey`
+
+- `users` will match `users`, `users.email`, `users.anythingElse`
+- `users.email` will match `users.email` and potentially `users.email.subKey`
 
 ## Example
 ```javascript
