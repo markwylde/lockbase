@@ -17,13 +17,11 @@ const lockbase = require('lockbase');
 const locks = lockbase();
 
 locks.add(['users']).then(lock => {
-  t.pass();
   setTimeout(() => locks.remove(lock), 500);
 });
 
 locks.add(['users']).then(lock => {
   // This will not be called for 500ms
-  t.pass();
   locks.remove(lock);
 });
 ```
