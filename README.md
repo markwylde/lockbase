@@ -23,15 +23,16 @@ is left blank, then a uuid will be used.
 
 To remove a lock, run the `remove` function with the id of the lock.
 
-**check -> Array(keys) -> boolean**
+**check -> Array(keys) -> id || false**
 
 To check if a lock exists, run the `check` function with an array of keys. If *any* of the keys
-are locked, it will return `true`.
+are locked, it will return the id of the active lock. If none of the keys are locked, it will
+return `false`.
 
 **keys** follow dot notation and will match partially.
 
 - `users` will match `users`, `users.email`, `users.anythingElse`
-- `users.email` will match `users.email` and potentially `users.email.subKey`
+- `users.email` will match `users.email` and `users.email.subKey`
 
 ## Example
 ```javascript
