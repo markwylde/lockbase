@@ -28,6 +28,11 @@ To remove a lock, run the `remove` function with the id of the lock.
 To check if a lock exists, run the `check` function with an array of keys. It will return
 the first lock to match, or `undefined` if no locks where found.
 
+**wait -> Array(keys)**
+
+To wait until all locks for a key set have finished, run the `wait` function with an array of
+keys. It will return a promise that will resolve when there are no more locks.
+
 **keys** follow dot notation and will match partially.
 
 - `users` will match `users`, `users.email`, `users.anythingElse`

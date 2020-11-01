@@ -10,7 +10,9 @@ function sync (locks, queue) {
       .length;
 
     if (existingLocks === 0) {
-      locks.push([item.id, item.keys]);
+      if (item.id) {
+        locks.push([item.id, item.keys]);
+      }
       queue.splice(index, 1);
       item.resolve(item.id);
     }
@@ -43,10 +45,18 @@ function lockbase () {
     return existingLocks[0];
   }
 
+  function wait (keys) {
+    return new Promise(resolve => {
+      queue.push({ keys, resolve });
+      sync(locks, queue);
+    });
+  }
+
   return {
     add,
     remove,
-    check
+    check,
+    wait
   };
 }
 

@@ -10,7 +10,7 @@ test('top level lock works', t => {
 
   locks.add(['users']).then(lock => {
     t.pass();
-    setTimeout(() => locks.remove(lock), 500);
+    setTimeout(() => locks.remove(lock), 100);
   });
   locks.add(['users']).then(lock => {
     t.pass();
@@ -25,7 +25,7 @@ test('top level lock with custom id works', t => {
 
   locks.add(['users'], 1).then(lock => {
     t.pass();
-    setTimeout(() => locks.remove(1), 500);
+    setTimeout(() => locks.remove(1), 100);
   });
   locks.add(['users']).then(lock => {
     t.pass();
@@ -80,5 +80,33 @@ test('check for locks', t => {
 
     const lockedAfter = locks.check(['users.email']);
     t.notOk(lockedAfter);
+  });
+});
+
+test('wait for locks', t => {
+  t.plan(3);
+
+  const locks = lockbase();
+  let lockRemoved = false;
+
+  locks.add(['users.email']).then(lock => {
+    const lockedBefore = locks.check(['users.email']);
+    t.deepEqual(lockedBefore, [
+      lock,
+      ['users.email']
+    ]);
+
+    lockRemoved = true;
+    locks.remove(lock);
+
+    const lockedAfter = locks.check(['users.email']);
+    t.notOk(lockedAfter, 'no longer locked');
+  });
+
+  locks.wait(['users.email']).then(lock => {
+    if (!lockRemoved) {
+      t.fail('lock was not actually removed');
+    }
+    t.pass('lock was removed then wait passed');
   });
 });
