@@ -33,8 +33,11 @@ function lockbase () {
 
   function remove (uuid) {
     const index = locks.findIndex(lock => lock[0] === uuid);
-    locks.splice(index, 1);
-    sync(locks, queue);
+    if (index > -1) {
+      locks.splice(index, 1);
+      sync(locks, queue);
+      return true;
+    }
   }
 
   function check (keys) {

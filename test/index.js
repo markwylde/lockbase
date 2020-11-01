@@ -3,6 +3,13 @@ const test = require('tape');
 
 require('./findExistingLocks');
 
+test('remove wrong id', t => {
+  t.plan(1);
+
+  const locks = lockbase();
+  t.notOk(locks.remove('not found'), 'lock could not be found');
+});
+
 test('top level lock works', t => {
   t.plan(2);
 

@@ -19,9 +19,10 @@ The `lockbase` module returns an object with three methods:
 To add a lock, run the `add` function with an array of keys. If the second `id` argument
 is left blank, then a uuid will be used.
 
-**remove -> id**
+**remove -> id -> boolean**
 
-To remove a lock, run the `remove` function with the id of the lock.
+To remove a lock, run the `remove` function with the id of the lock. It will return `true` if
+a lock was found and removed successfully.
 
 **check -> Array(keys) -> id || false**
 
