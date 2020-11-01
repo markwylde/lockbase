@@ -1,4 +1,4 @@
-function doesLockExist (locks, key) {
+function findExistingLocks (locks, key) {
   return locks.find(lock => {
     const [, keys] = lock;
 
@@ -16,4 +16,4 @@ function doesLockExist (locks, key) {
   });
 }
 
-module.exports = doesLockExist;
+module.exports = findExistingLocks;

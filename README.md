@@ -25,9 +25,8 @@ To remove a lock, run the `remove` function with the id of the lock.
 
 **check -> Array(keys) -> id || false**
 
-To check if a lock exists, run the `check` function with an array of keys. If *any* of the keys
-are locked, it will return the id of the active lock. If none of the keys are locked, it will
-return `false`.
+To check if a lock exists, run the `check` function with an array of keys. It will return
+the first lock to match, or `undefined` if no locks where found.
 
 **keys** follow dot notation and will match partially.
 

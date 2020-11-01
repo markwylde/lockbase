@@ -1,7 +1,7 @@
 const lockbase = require('../');
 const test = require('tape');
 
-require('./doesLockExist');
+require('./findExistingLocks');
 
 test('top level lock works', t => {
   t.plan(2);
@@ -71,7 +71,10 @@ test('check for locks', t => {
 
   locks.add(['users.email']).then(lock => {
     const lockedBefore = locks.check(['users.email']);
-    t.ok(lockedBefore);
+    t.deepEqual(lockedBefore, [
+      lock,
+      ['users.email']
+    ]);
 
     locks.remove(lock);
 

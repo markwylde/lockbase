@@ -1,11 +1,11 @@
 const uuid = require('uuid').v4;
 
-const doesLockExist = require('./doesLockExist');
+const findExistingLocks = require('./findExistingLocks');
 
 function sync (locks, queue) {
   queue.forEach((item, index) => {
     const existingLocks = item.keys
-      .map(key => doesLockExist(locks, key))
+      .map(key => findExistingLocks(locks, key))
       .filter(key => !!key)
       .length;
 
@@ -37,11 +37,10 @@ function lockbase () {
 
   function check (keys) {
     const existingLocks = keys
-      .map(key => doesLockExist(locks, key))
-      .filter(key => !!key)
-      .length;
+      .map(key => findExistingLocks(locks, key))
+      .filter(key => !!key);
 
-    return existingLocks > 0;
+    return existingLocks[0];
   }
 
   return {
