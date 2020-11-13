@@ -14,7 +14,7 @@ npm install --save lockbase
 ## Usage
 The `lockbase` module returns an object with three methods:
 
-**add -> Array(keys) -> id -> id**
+**add -> Array(keys) -> id -> Promise(id)**
 
 To add a lock, run the `add` function with an array of keys. If the second `id` argument
 is left blank, then a uuid will be used.

@@ -117,3 +117,26 @@ test('wait for locks', t => {
     t.pass('lock was removed then wait passed');
   });
 });
+
+test('multiple locks', t => {
+  t.plan(4);
+
+  const locks = lockbase();
+
+  locks.add(['users']).then(lock => {
+    t.pass();
+    setTimeout(() => locks.remove(lock), 100);
+  });
+  locks.add(['users']).then(lock => {
+    t.pass();
+    setTimeout(() => locks.remove(lock), 100);
+  });
+  locks.add(['users']).then(lock => {
+    t.pass();
+    setTimeout(() => locks.remove(lock), 100);
+  });
+  locks.add(['users']).then(lock => {
+    t.pass();
+    locks.remove(lock);
+  });
+});
