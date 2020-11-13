@@ -12,7 +12,7 @@ npm install --save lockbase
 ```
 
 ## Usage
-The `lockbase` module returns an object with three methods:
+The `lockbase` module returns an object with five methods:
 
 **add -> Array(keys) -> id -> Promise(id)**
 
