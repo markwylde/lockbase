@@ -140,3 +140,23 @@ test('multiple locks', t => {
     locks.remove(lock);
   });
 });
+
+test('locks being waited fail when cancelled', t => {
+  t.plan(1);
+
+  const locks = lockbase();
+
+  locks.add(['users.email']).then(lock => {
+    setTimeout(() => {
+      locks.cancel();
+    }, 100);
+  });
+
+  locks.wait(['users.email'])
+    .then(lock => {
+      t.fail('should not have passed successfully');
+    })
+    .catch(error => {
+      t.equal(error.message, 'lockbase: locks where cancelled');
+    });
+});

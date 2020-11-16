@@ -24,9 +24,9 @@ function lockbase () {
   const queue = [];
 
   function add (keys, id) {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       id = id || uuid();
-      queue.push({ id, keys, resolve });
+      queue.push({ id, keys, resolve, reject });
       sync(locks, queue);
     });
   }
@@ -40,6 +40,13 @@ function lockbase () {
     }
   }
 
+  function cancel (reason) {
+    queue.forEach((item, index) => {
+      queue.splice(index, 1);
+      item.reject(new Error(`lockbase: locks where cancelled${reason ? ' ' + reason : ''}`));
+    });
+  }
+
   function check (keys) {
     const existingLocks = keys
       .map(key => findExistingLocks(locks, key))
@@ -49,8 +56,8 @@ function lockbase () {
   }
 
   function wait (keys) {
-    return new Promise(resolve => {
-      queue.push({ keys, resolve });
+    return new Promise((resolve, reject) => {
+      queue.push({ keys, resolve, reject });
       sync(locks, queue);
     });
   }
@@ -58,6 +65,7 @@ function lockbase () {
   return {
     add,
     remove,
+    cancel,
     check,
     wait
   };
