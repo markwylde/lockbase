@@ -34,6 +34,10 @@ the first lock to match, or `undefined` if no locks where found.
 To wait until all locks for a key set have finished, run the `wait` function with an array of
 keys. It will return a promise that will resolve when there are no more locks.
 
+**cancel -> Optional(reason)**
+
+Cancel all locks, rejecting any promises that are waiting.
+
 **keys** follow dot notation and will match partially.
 
 - `users` will match `users`, `users.email`, `users.anythingElse`
