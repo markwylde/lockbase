@@ -1,7 +1,7 @@
 const findExistingLocks = require('../findExistingLocks');
-const tape = require('tape');
+const test = require('basictap');
 
-tape('findExistingLocks -> exact lock exists works', t => {
+test('findExistingLocks -> exact lock exists works', t => {
   t.plan(1);
 
   const exists = findExistingLocks([
@@ -11,7 +11,7 @@ tape('findExistingLocks -> exact lock exists works', t => {
   t.ok(exists);
 });
 
-tape('findExistingLocks -> partial lock exists works', t => {
+test('findExistingLocks -> partial lock exists works', t => {
   t.plan(1);
 
   const exists = findExistingLocks([
@@ -21,7 +21,7 @@ tape('findExistingLocks -> partial lock exists works', t => {
   t.ok(exists);
 });
 
-tape('findExistingLocks -> partial lock different field', t => {
+test('findExistingLocks -> partial lock different field', t => {
   t.plan(1);
 
   const exists = findExistingLocks([
@@ -31,7 +31,7 @@ tape('findExistingLocks -> partial lock different field', t => {
   t.notOk(exists);
 });
 
-tape('findExistingLocks -> partial lock different table', t => {
+test('findExistingLocks -> partial lock different table', t => {
   t.plan(1);
 
   const exists = findExistingLocks([

@@ -1,5 +1,5 @@
 const lockbase = require('../');
-const test = require('tape');
+const test = require('basictap');
 
 require('./findExistingLocks');
 
