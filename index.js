@@ -5,8 +5,7 @@ const findExistingLocks = require('./findExistingLocks');
 function sync (locks, queue) {
   queue.forEach((item, index) => {
     const existingLocks = item.keys
-      .map(key => findExistingLocks(locks, key))
-      .filter(key => !!key)
+      .filter(key => findExistingLocks(locks, key))
       .length;
 
     if (existingLocks === 0) {
@@ -15,6 +14,7 @@ function sync (locks, queue) {
       }
       queue.splice(index, 1);
       item.resolve(item.id);
+      sync(locks, queue);
     }
   });
 }

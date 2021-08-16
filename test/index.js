@@ -141,6 +141,19 @@ test('multiple locks', t => {
   });
 });
 
+test('single locks - multiple waits', async t => {
+  t.plan(2);
+
+  const locks = lockbase();
+
+  const lock = await locks.add(['users']);
+
+  locks.wait(['users']).then(() => t.pass('first wait was resolved'));
+  locks.wait(['users']).then(() => t.pass('second wait was resolved'));
+
+  locks.remove(lock);
+});
+
 test('locks being waited fail when cancelled', t => {
   t.plan(1);
 
