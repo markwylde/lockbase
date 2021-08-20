@@ -154,6 +154,20 @@ test('single locks - multiple waits', async t => {
   locks.remove(lock);
 });
 
+test('locks cancelled', async t => {
+  t.plan(1);
+
+  const locks = lockbase();
+
+  await locks.add(['users.email']);
+
+  const wait = locks.wait(['users.email']);
+  wait.catch((error) => {
+    t.equal(error.message, 'lockbase: wait cancelled');
+  });
+  wait.cancel();
+});
+
 test('locks being waited fail when cancelled', t => {
   t.plan(1);
 

@@ -56,10 +56,23 @@ function lockbase () {
   }
 
   function wait (keys) {
-    return new Promise((resolve, reject) => {
-      queue.push({ keys, resolve, reject });
+    const queueItem = {};
+
+    const promise = new Promise((resolve, reject) => {
+      queueItem.keys = keys;
+      queueItem.resolve = resolve;
+      queueItem.reject = reject;
+      queue.push(queueItem);
       sync(locks, queue);
     });
+
+    promise.cancel = () => {
+      const index = queue.indexOf(queueItem);
+      queue.splice(index, 1);
+      queueItem.reject(new Error('lockbase: wait cancelled'));
+    };
+
+    return promise;
   }
 
   return {
