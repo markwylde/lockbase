@@ -66,10 +66,10 @@ function lockbase () {
       sync(locks, queue);
     });
 
-    promise.cancel = () => {
+    promise.cancel = (error) => {
       const index = queue.indexOf(queueItem);
       queue.splice(index, 1);
-      queueItem.reject(new Error('lockbase: wait cancelled'));
+      queueItem.reject(error || new Error('lockbase: wait cancelled'));
     };
 
     return promise;

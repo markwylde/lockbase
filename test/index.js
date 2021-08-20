@@ -163,9 +163,9 @@ test('locks cancelled', async t => {
 
   const wait = locks.wait(['users.email']);
   wait.catch((error) => {
-    t.equal(error.message, 'lockbase: wait cancelled');
+    t.equal(error.message, 'some unknown reason');
   });
-  wait.cancel();
+  wait.cancel(new Error('some unknown reason'));
 });
 
 test('locks being waited fail when cancelled', t => {
