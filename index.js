@@ -40,10 +40,10 @@ function lockbase () {
     }
   }
 
-  function cancel (reason) {
+  function cancel (error) {
     queue.forEach((item, index) => {
       queue.splice(index, 1);
-      item.reject(new Error(`lockbase: locks where cancelled${reason ? ' ' + reason : ''}`));
+      item.reject(error || new Error('lockbase: all locks cancelled'));
     });
   }
 

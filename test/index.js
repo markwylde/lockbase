@@ -154,7 +154,21 @@ test('single locks - multiple waits', async t => {
   locks.remove(lock);
 });
 
-test('locks cancelled', async t => {
+test('wait cancelled', async t => {
+  t.plan(1);
+
+  const locks = lockbase();
+
+  await locks.add(['users.email']);
+
+  const wait = locks.wait(['users.email']);
+  wait.catch((error) => {
+    t.equal(error.message, 'lockbase: wait cancelled');
+  });
+  wait.cancel();
+});
+
+test('wait cancelled with custom error', async t => {
   t.plan(1);
 
   const locks = lockbase();
@@ -184,6 +198,26 @@ test('locks being waited fail when cancelled', t => {
       t.fail('should not have passed successfully');
     })
     .catch(error => {
-      t.equal(error.message, 'lockbase: locks where cancelled');
+      t.equal(error.message, 'lockbase: all locks cancelled');
+    });
+});
+
+test('locks being waited fail when cancelled with custom error', t => {
+  t.plan(1);
+
+  const locks = lockbase();
+
+  locks.add(['users.email']).then(lock => {
+    setTimeout(() => {
+      locks.cancel(new Error('why?'));
+    }, 100);
+  });
+
+  locks.wait(['users.email'])
+    .then(lock => {
+      t.fail('should not have passed successfully');
+    })
+    .catch(error => {
+      t.equal(error.message, 'why?');
     });
 });
