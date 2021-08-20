@@ -1,6 +1,6 @@
 {
   "name": "lockbase",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "A queued locking library useful for databases",
   "homepage": "https://github.com/markwylde/lockbase#readme",
   "main": "index.js",
