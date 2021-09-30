@@ -25,6 +25,19 @@ test('top level lock works', t => {
   });
 });
 
+test('list existing locks', async t => {
+  t.plan(1);
+
+  const locks = lockbase();
+
+  locks.add(['users1', 'more2']);
+  locks.add(['users2', 'users2']);
+  locks.add(['users2', 'users2']);
+  locks.add(['users3']);
+
+  t.deepEqual(locks.state.active, ['users1', 'more2', 'users2', 'users3']);
+});
+
 test('top level lock with custom id works', t => {
   t.plan(2);
 

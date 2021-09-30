@@ -25,10 +25,10 @@
     "url": "https://github.com/markwylde/lockbase/issues"
   },
   "dependencies": {
-    "c8": "^7.8.0",
+    "c8": "^7.9.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "basictap": "^2.0.2"
+    "basictap": "^2.2.1"
   }
 }
