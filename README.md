@@ -46,7 +46,7 @@ Cancel all locks, rejecting any promises that are waiting.
 **setLocks -> Array(locks)** set the lock state manually.
 > This is useful for syncing the lock state with another service
 
-```json
+```javascript
 setLocks([
   ["2401685e-77ef-423a-9ad6-bd4b8db1af80", ["users"]]
 ]);
