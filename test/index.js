@@ -35,7 +35,7 @@ test('list existing locks', async t => {
   locks.add(['users2', 'users2']);
   locks.add(['users3']);
 
-  t.deepEqual(locks.state.active, ['users1', 'more2', 'users2', 'users3']);
+  t.deepEqual(locks.active, ['users1', 'more2', 'users2', 'users3']);
 });
 
 test('top level lock with custom id works', t => {
@@ -152,6 +152,20 @@ test('multiple locks', t => {
     t.pass();
     locks.remove(lock);
   });
+});
+
+test('manually mutate state', t => {
+  t.plan(1);
+
+  const locks = lockbase();
+
+  locks.locks = [
+    ['2401685e-77ef-423a-9ad6-bd4b8db1af80', ['users']]
+  ];
+
+  locks.wait(['users']).then(() => t.pass('first wait was resolved'));
+
+  locks.setLocks([]);
 });
 
 test('single locks - multiple waits', async t => {

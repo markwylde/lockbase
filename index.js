@@ -1,64 +1,65 @@
+const EventEmitter = require('events');
 const uuid = require('uuid').v4;
 
 const findExistingLocks = require('./findExistingLocks');
 
-function sync (state) {
-  state.queue.forEach((item, index) => {
+function sync (context) {
+  context.queue.forEach((item, index) => {
     const existingLocks = item.keys
-      .filter(key => findExistingLocks(state.locks, key))
+      .filter(key => findExistingLocks(context.locks, key))
       .length;
 
     if (existingLocks === 0) {
       if (item.id) {
-        state.locks.push([item.id, item.keys]);
+        context.locks.push([item.id, item.keys]);
       }
-      state.queue.splice(index, 1);
+      context.queue.splice(index, 1);
       item.resolve(item.id);
-      sync(state);
+      sync(context);
     }
   });
 
-  const activeLocksWithDuplicates = state.locks.reduce((result, lock) => {
+  const activeLocksWithDuplicates = context.locks.reduce((result, lock) => {
     return result.concat(lock[1]);
   }, []);
 
-  state.active = Array.from(new Set(activeLocksWithDuplicates));
+  context.active = Array.from(new Set(activeLocksWithDuplicates));
 }
 
 function lockbase () {
-  const state = {
-    locks: [],
-    queue: [],
-    active: []
-  };
+  const context = new EventEmitter();
+
+  context.locks = [];
+  context.queue = [];
+  context.active = [];
 
   function add (keys, id) {
     return new Promise((resolve, reject) => {
       id = id || uuid();
-      state.queue.push({ id, keys, resolve, reject });
-      sync(state);
+      context.queue.push({ id, keys, resolve, reject });
+      sync(context);
     });
   }
 
   function remove (uuid) {
-    const index = state.locks.findIndex(lock => lock[0] === uuid);
+    const index = context.locks.findIndex(lock => lock[0] === uuid);
     if (index > -1) {
-      state.locks.splice(index, 1);
-      sync(state);
+      context.locks.splice(index, 1);
+      sync(context);
       return true;
     }
   }
 
   function cancel (error) {
-    state.queue.forEach((item, index) => {
-      state.queue.splice(index, 1);
+    context.queue.forEach((item, index) => {
+      context.queue.splice(index, 1);
       item.reject(error || new Error('lockbase: all locks cancelled'));
     });
   }
 
   function check (keys) {
     const existingLocks = keys
-      .map(key => findExistingLocks(state.locks, key))
+      .map(key => findExistingLocks(context.locks, key))
       .filter(key => !!key);
 
     return existingLocks[0];
@@ -71,28 +72,33 @@ function lockbase () {
       queueItem.keys = keys;
       queueItem.resolve = resolve;
       queueItem.reject = reject;
-      state.queue.push(queueItem);
-      sync(state);
+      context.queue.push(queueItem);
+      sync(context);
     });
 
     promise.cancel = (error) => {
-      const index = state.queue.indexOf(queueItem);
-      state.queue.splice(index, 1);
+      const index = context.queue.indexOf(queueItem);
+      context.queue.splice(index, 1);
       queueItem.reject(error || new Error('lockbase: wait cancelled'));
     };
 
     return promise;
   }
 
-  return {
-    state,
+  Object.assign(context, {
+    setLocks: locks => {
+      context.locks = locks;
+      sync(context);
+    },
 
     add,
     remove,
     cancel,
     check,
     wait
-  };
+  });
+
+  return context;
 }
 
 module.exports = lockbase;
