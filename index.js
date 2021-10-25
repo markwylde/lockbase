@@ -65,7 +65,7 @@ function lockbase () {
   }
 
   function wait (keys, options) {
-    const ignore = options?.ignore;
+    const ignore = options && options.ignore;
     const queueItem = {};
 
     const promise = new Promise((resolve, reject) => {
