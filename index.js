@@ -10,7 +10,7 @@ function sync (context) {
 
     if (existingLocks.length === 0) {
       if (item.id) {
-        context.locks.push([item.id, item.keys]);
+        context.locks.push([item.id, item.keys, ...item.additional]);
       }
       context.queue.splice(index, 1);
       item.resolve(item.id);
@@ -32,10 +32,10 @@ function lockbase () {
   context.queue = [];
   context.active = [];
 
-  function add (keys, id) {
+  function add (keys, id, ...additional) {
     return new Promise((resolve, reject) => {
       id = id || uuid();
-      context.queue.push({ id, keys, resolve, reject });
+      context.queue.push({ id, keys, additional, resolve, reject });
       sync(context);
     });
   }

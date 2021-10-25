@@ -38,6 +38,15 @@ test('list existing locks', async t => {
   t.deepEqual(locks.active, ['users1', 'more2', 'users2', 'users3']);
 });
 
+test('add lock with additional meta data', async t => {
+  t.plan(1);
+
+  const locks = lockbase();
+
+  locks.add(['users1', 'more2'], null, 'additionalmetadata');
+  t.deepEqual(locks.locks[0][2], 'additionalmetadata');
+});
+
 test('top level lock with custom id works', t => {
   t.plan(2);
 
