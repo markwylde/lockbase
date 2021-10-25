@@ -1,5 +1,12 @@
-function findExistingLocks (locks, key) {
-  return locks.find(lock => {
+function findExistingLocks (locks, key, ignore = []) {
+  const locksWithoutIgnore = locks.filter(lock => {
+    const isIgnored = ignore.find(ignoredLockId => {
+      return ignoredLockId === lock[0];
+    });
+    return !isIgnored;
+  });
+
+  return locksWithoutIgnore.find(lock => {
     const [, keys] = lock;
 
     const exact = keys.find(item => item === key);

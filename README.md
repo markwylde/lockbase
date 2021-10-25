@@ -29,7 +29,7 @@ a lock was found and removed successfully.
 To check if a lock exists, run the `check` function with an array of keys. It will return
 the first lock to match, or `undefined` if no locks where found.
 
-**wait -> Array(keys)**
+**wait -> Array(keys) -> { ignoredKeys: [] }**
 
 To wait until all locks for a key set have finished, run the `wait` function with an array of
 keys. It will return a promise that will resolve when there are no more locks.

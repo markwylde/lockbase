@@ -6,10 +6,9 @@ const findExistingLocks = require('./findExistingLocks');
 function sync (context) {
   context.queue.forEach((item, index) => {
     const existingLocks = item.keys
-      .filter(key => findExistingLocks(context.locks, key))
-      .length;
+      .filter(key => findExistingLocks(context.locks, key, item.ignore));
 
-    if (existingLocks === 0) {
+    if (existingLocks.length === 0) {
       if (item.id) {
         context.locks.push([item.id, item.keys]);
       }
@@ -65,10 +64,12 @@ function lockbase () {
     return existingLocks[0];
   }
 
-  function wait (keys) {
+  function wait (keys, options) {
+    const ignore = options?.ignore;
     const queueItem = {};
 
     const promise = new Promise((resolve, reject) => {
+      queueItem.ignore = ignore || [];
       queueItem.keys = keys;
       queueItem.resolve = resolve;
       queueItem.reject = reject;

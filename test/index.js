@@ -154,6 +154,38 @@ test('multiple locks', t => {
   });
 });
 
+test('locks wait with ignore', async t => {
+  t.plan(1);
+
+  const locks = lockbase();
+
+  const lockId = await locks.add(['users']);
+
+  setTimeout(() => {
+    locks.remove(lockId);
+  }, 100);
+
+  await locks.wait(['users'], { ignore: [lockId] });
+
+  t.pass();
+});
+
+test('locks wait with multiple ignores', async t => {
+  t.plan(1);
+
+  const locks = lockbase();
+
+  const lockId = await locks.add(['users']);
+
+  setTimeout(() => {
+    locks.remove(lockId);
+  }, 100);
+
+  await locks.wait(['users'], { ignore: [0, lockId] });
+
+  t.pass();
+});
+
 test('manually mutate state', t => {
   t.plan(1);
 
