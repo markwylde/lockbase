@@ -12,7 +12,14 @@ npm install --save lockbase
 ```
 
 ## Usage
-The `lockbase` module returns an object with five methods:
+The `lockbase` module has the following methods:
+- `add` a new lock
+- `remove` an existing lock
+- `cancel` all locks
+- `find` all locks
+- `wait` for key to have no more locks
+- `importState`
+- `exportState`
 
 ```javascript
 import lockbase from 'lockbase';
