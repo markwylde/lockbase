@@ -1,8 +1,6 @@
 const lockbase = require('../');
 const test = require('basictap');
 
-require('./findExistingLocks');
-
 test('remove wrong id', t => {
   t.plan(1);
 
@@ -15,11 +13,11 @@ test('top level lock works', t => {
 
   const locks = lockbase();
 
-  locks.add(['users']).then(lock => {
+  locks.add('users').then(lock => {
     t.pass();
-    setTimeout(() => locks.remove(lock), 100);
+    setTimeout(() => locks.remove(lock));
   });
-  locks.add(['users']).then(lock => {
+  locks.add('users').then(lock => {
     t.pass();
     locks.remove(lock);
   });
@@ -30,12 +28,12 @@ test('list existing locks', async t => {
 
   const locks = lockbase();
 
-  locks.add(['users1', 'more2']);
-  locks.add(['users2', 'users2']);
-  locks.add(['users2', 'users2']);
-  locks.add(['users3']);
+  locks.add('users1');
+  locks.add('users2');
 
-  t.deepEqual(locks.active, ['users1', 'more2', 'users2', 'users3']);
+  const active = locks.queue.map(item => item.path);
+
+  t.deepEqual(active, ['users1', 'users2']);
 });
 
 test('add lock with additional meta data', async t => {
@@ -43,8 +41,12 @@ test('add lock with additional meta data', async t => {
 
   const locks = lockbase();
 
-  locks.add(['users1', 'more2'], null, 'additionalmetadata');
-  t.deepEqual(locks.locks[0][2], 'additionalmetadata');
+  locks.add('users1', { id: 1, additional: 'info' });
+  t.deepEqual(locks.queue, [{
+    id: 1,
+    additional: 'info',
+    path: 'users1'
+  }]);
 });
 
 test('top level lock with custom id works', t => {
@@ -52,11 +54,11 @@ test('top level lock with custom id works', t => {
 
   const locks = lockbase();
 
-  locks.add(['users'], 1).then(lock => {
+  locks.add('users', { id: 'baz' }).then(lock => {
     t.pass();
-    setTimeout(() => locks.remove(1), 100);
+    setTimeout(() => locks.remove('baz'));
   });
-  locks.add(['users']).then(lock => {
+  locks.add('users').then(lock => {
     t.pass();
     locks.remove(lock);
   });
@@ -67,14 +69,14 @@ test('field based lock blocks', t => {
 
   const locks = lockbase();
 
-  locks.add(['users.email']).then(lock => {
+  locks.add('users.email').then(lock => {
     t.pass();
   });
-  locks.add(['users.one']).then(lock => {
+  locks.add('users.one').then(lock => {
     t.pass();
     locks.remove(lock);
   });
-  locks.add(['users.email']).then(lock => {
+  locks.add('users.email').then(lock => {
     t.fail();
   });
 });
@@ -84,31 +86,31 @@ test('field based lock works', t => {
 
   const locks = lockbase();
 
-  locks.add(['users.email']).then(lock => {
+  locks.add('users.email').then(lock => {
     t.pass();
     locks.remove(lock);
   });
-  locks.add(['users.email']).then(lock => {
+  locks.add('users.email').then(lock => {
     t.pass();
   });
 });
 
-test('check for locks', t => {
+test('find locks', t => {
   t.plan(2);
 
   const locks = lockbase();
 
-  locks.add(['users.email']).then(lock => {
-    const lockedBefore = locks.check(['users.email']);
-    t.deepEqual(lockedBefore, [
-      lock,
-      ['users.email']
-    ]);
+  locks.add('users.email').then(lock => {
+    const lockedBefore = locks.find('users.email');
+    t.deepEqual(lockedBefore, [{
+      id: lock,
+      path: 'users.email'
+    }]);
 
     locks.remove(lock);
 
-    const lockedAfter = locks.check(['users.email']);
-    t.notOk(lockedAfter);
+    const lockedAfter = locks.find('users.email');
+    t.deepEqual(lockedAfter, []);
   });
 });
 
@@ -118,21 +120,23 @@ test('wait for locks', t => {
   const locks = lockbase();
   let lockRemoved = false;
 
-  locks.add(['users.email']).then(lock => {
-    const lockedBefore = locks.check(['users.email']);
-    t.deepEqual(lockedBefore, [
-      lock,
-      ['users.email']
-    ]);
+  locks.add('users.email').then(lock => {
+    const lockedBefore = locks.find('users.email');
+    t.deepEqual(lockedBefore, [{
+      id: lock,
+      path: 'users.email'
+    }]);
 
-    lockRemoved = true;
-    locks.remove(lock);
+    setTimeout(() => {
+      lockRemoved = true;
+      locks.remove(lock);
 
-    const lockedAfter = locks.check(['users.email']);
-    t.notOk(lockedAfter, 'no longer locked');
+      const lockedAfter = locks.find('users.email');
+      t.deepEqual(lockedAfter, []);
+    });
   });
 
-  locks.wait(['users.email']).then(lock => {
+  locks.wait('users.email').then(lock => {
     if (!lockRemoved) {
       t.fail('lock was not actually removed');
     }
@@ -145,22 +149,45 @@ test('multiple locks', t => {
 
   const locks = lockbase();
 
-  locks.add(['users']).then(lock => {
+  locks.add('users').then(lock => {
     t.pass();
-    setTimeout(() => locks.remove(lock), 100);
+    setTimeout(() => locks.remove(lock));
   });
-  locks.add(['users']).then(lock => {
+  locks.add('users').then(lock => {
     t.pass();
-    setTimeout(() => locks.remove(lock), 100);
+    setTimeout(() => locks.remove(lock));
   });
-  locks.add(['users']).then(lock => {
+  locks.add('users').then(lock => {
     t.pass();
-    setTimeout(() => locks.remove(lock), 100);
+    setTimeout(() => locks.remove(lock));
   });
-  locks.add(['users']).then(lock => {
+  locks.add('users').then(lock => {
     t.pass();
     locks.remove(lock);
   });
+});
+
+test('locks wait', async t => {
+  t.plan(1);
+
+  const locks = lockbase();
+
+  const lockId = await locks.add('users');
+
+  let removed;
+  setTimeout(() => {
+    locks.remove(lockId);
+    removed = true;
+  });
+
+  await locks.wait('users');
+
+  if (!removed) {
+    t.fail('did not wait until cancelled');
+    return;
+  }
+
+  t.pass();
 });
 
 test('locks wait with ignore', async t => {
@@ -168,13 +195,19 @@ test('locks wait with ignore', async t => {
 
   const locks = lockbase();
 
-  const lockId = await locks.add(['users']);
+  const lockId = await locks.add('users');
 
+  let removed;
   setTimeout(() => {
     locks.remove(lockId);
-  }, 100);
+    removed = true;
+  });
 
-  await locks.wait(['users'], { ignore: [lockId] });
+  await locks.wait('users', [lockId]);
+  if (removed) {
+    t.fail('should have resolved before removal');
+    return;
+  }
 
   t.pass();
 });
@@ -184,29 +217,66 @@ test('locks wait with multiple ignores', async t => {
 
   const locks = lockbase();
 
-  const lockId = await locks.add(['users']);
+  const lockId = await locks.add('users');
 
   setTimeout(() => {
     locks.remove(lockId);
-  }, 100);
+  });
 
-  await locks.wait(['users'], { ignore: [0, lockId] });
+  await locks.wait('users', [0, lockId]);
 
   t.pass();
 });
 
-test('manually mutate state', t => {
+test('manually mutate state - rejects missing locks', async t => {
+  t.plan(2);
+
+  const locks = lockbase();
+
+  await locks.add('users');
+
+  locks.add('users').then(() => {
+    t.fail('second lock should not be applied');
+  }).catch((error) => {
+    t.equal(error.message, 'imported state did not hold lock');
+  });
+
+  locks.wait('users').then(() => {
+    t.pass('wait was resolved');
+  }).catch((error) => {
+    t.equal(error.message, 'imported state did not hold lock');
+  });
+
+  locks.importState({
+    incremental: 0,
+    queue: []
+  });
+});
+
+test('manually mutate state', async t => {
   t.plan(1);
 
   const locks = lockbase();
 
-  locks.locks = [
-    ['2401685e-77ef-423a-9ad6-bd4b8db1af80', ['users']]
-  ];
+  await locks.add('users');
 
-  locks.wait(['users']).then(() => t.pass('first wait was resolved'));
+  locks.add('users').then(() => {
+    t.pass('second lock was applied');
+  });
 
-  locks.setLocks([]);
+  locks.add('users').then(() => {
+    t.fail('second lock should never have been applied');
+  });
+
+  locks.wait('users').then(() => {
+    t.fail('wait should never have resolved');
+  });
+
+  const exportedState = locks.exportState();
+  locks.importState({
+    queue: exportedState.queue.slice(1),
+    incremental: exportedState.incremental
+  });
 });
 
 test('single locks - multiple waits', async t => {
@@ -214,10 +284,10 @@ test('single locks - multiple waits', async t => {
 
   const locks = lockbase();
 
-  const lock = await locks.add(['users']);
+  const lock = await locks.add('users');
 
-  locks.wait(['users']).then(() => t.pass('first wait was resolved'));
-  locks.wait(['users']).then(() => t.pass('second wait was resolved'));
+  locks.wait('users').then(() => t.pass('first wait was resolved'));
+  locks.wait('users').then(() => t.pass('second wait was resolved'));
 
   locks.remove(lock);
 });
@@ -227,9 +297,9 @@ test('wait cancelled', async t => {
 
   const locks = lockbase();
 
-  await locks.add(['users.email']);
+  await locks.add('users.email');
 
-  const wait = locks.wait(['users.email']);
+  const wait = locks.wait('users.email');
   wait.catch((error) => {
     t.equal(error.message, 'lockbase: wait cancelled');
   });
@@ -241,9 +311,9 @@ test('wait cancelled with custom error', async t => {
 
   const locks = lockbase();
 
-  await locks.add(['users.email']);
+  await locks.add('users.email');
 
-  const wait = locks.wait(['users.email']);
+  const wait = locks.wait('users.email');
   wait.catch((error) => {
     t.equal(error.message, 'some unknown reason');
   });
@@ -255,13 +325,13 @@ test('locks being waited fail when cancelled', t => {
 
   const locks = lockbase();
 
-  locks.add(['users.email']).then(lock => {
+  locks.add('users.email').then(lock => {
     setTimeout(() => {
       locks.cancel();
-    }, 100);
+    });
   });
 
-  locks.wait(['users.email'])
+  locks.wait('users.email')
     .then(lock => {
       t.fail('should not have passed successfully');
     })
@@ -275,17 +345,24 @@ test('locks being waited fail when cancelled with custom error', t => {
 
   const locks = lockbase();
 
-  locks.add(['users.email']).then(lock => {
+  locks.add('users.email').then(lock => {
     setTimeout(() => {
       locks.cancel(new Error('why?'));
-    }, 100);
+    });
   });
 
-  locks.wait(['users.email'])
+  locks.wait('users.email')
     .then(lock => {
       t.fail('should not have passed successfully');
     })
     .catch(error => {
       t.equal(error.message, 'why?');
     });
+});
+
+test('isLockActive - empty queue', t => {
+  const isActive = lockbase.isLockActive({
+    queue: []
+  }, null);
+  t.equal(isActive, true);
 });

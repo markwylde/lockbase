@@ -14,56 +14,76 @@ npm install --save lockbase
 ## Usage
 The `lockbase` module returns an object with five methods:
 
-**add -> Array(keys) -> id -> Promise(id)**
+```javascript
+import lockbase from 'lockbase';
+const locks = lockbase();
 
-To add a lock, run the `add` function with an array of keys. If the second `id` argument
-is left blank, then a uuid will be used.
+// Add a lock, and wait until it becomes active
+const lockId = await locks.add(
+  'users', // path to lock
+  {
+    id: 'optional custom id' // defaults to increments starting at 1,
+    somethingElse: 'abc' // add custom metadata
+  }
+);
 
-**remove -> id -> boolean**
+// Remove a lock when you're finished with it
+locks.remove(lockId);
 
-To remove a lock, run the `remove` function with the id of the lock. It will return `true` if
-a lock was found and removed successfully.
+const usersLocks = locks.find('users');
+/*
+usersLocks === [{
+  id: 1,
+  path: 'users'
+}]
+*/
 
-**check -> Array(keys) -> id || false**
+// Wait until a key has no locks associated with it
+// This will wait until `users` is unlocked.
+await locks.wait('users.email')
 
-To check if a lock exists, run the `check` function with an array of keys. It will return
-the first lock to match, or `undefined` if no locks where found.
+// Cancel all locks, rejecting any promises that are waiting.
+locks.cancel(new Error('server is closing down'))
+```
 
-**wait -> Array(keys) -> { ignoredKeys: [] }**
+## Export lock state
+If you are running multiple servers, where a primary server is used, you may need to hand over lock state. For example, if using [raft](https://raft.github.io/), following a leader election.
 
-To wait until all locks for a key set have finished, run the `wait` function with an array of
-keys. It will return a promise that will resolve when there are no more locks.
-
-**cancel -> Optional(reason)**
-
-Cancel all locks, rejecting any promises that are waiting.
-
-**keys** follow dot notation and will match partially.
-
-- `users` will match `users`, `users.email`, `users.anythingElse`
-- `users.email` will match `users.email` and `users.email.subKey`
-
-**setLocks -> Array(locks)** set the lock state manually.
-> This is useful for syncing the lock state with another service
+You can export the lock state as a JSON object and import it into another server.
 
 ```javascript
-setLocks([
-  ["2401685e-77ef-423a-9ad6-bd4b8db1af80", ["users"]]
-]);
+const exportedState = locks1.exportState();
+/*
+exportedState === {
+    queue: [{
+      id: 1,
+      path: 'users'  
+    }],
+    incremental: 1
+  }
+*/
+
+locks2.importState(exportedState);
 ```
+
+## Paths
+Paths follow dot notation and will match partially.
+
+- `users` will match `users`, `users.email`, `users.anythingElse`
+- `users.email` will match `users.email` and `users.email.subpath`
 
 ## Example
 ```javascript
 const lockbase = require('lockbase');
 const locks = lockbase();
 
-locks.add(['users']).then(lock => {
-  const isLocked = locks.check(['users.email'])
+locks.add('users').then(lock => {
+  const isLocked = locks.find('users.email')
   console.log(isLocked) // === true
   setTimeout(() => locks.remove(lock), 500);
 });
 
-locks.add(['users']).then(lock => {
+locks.add('users').then(lock => {
   // This will not be called for 500ms
   locks.remove(lock);
 });

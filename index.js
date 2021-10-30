@@ -1,105 +1,140 @@
-const EventEmitter = require('events');
-const uuid = require('uuid').v4;
+function isLockActive (context, testItem) {
+  for (const item of context.queue) {
+    const isIgnored = (testItem.ignore || []).find(ignoreId => ignoreId === item.id);
 
-const findExistingLocks = require('./findExistingLocks');
+    if (isIgnored) {
+      continue;
+    }
+
+    if (item === testItem) {
+      return true;
+    }
+
+    if (item.path.startsWith(testItem.path)) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 function sync (context) {
-  context.queue.forEach((item, index) => {
-    const existingLocks = item.keys
-      .filter(key => findExistingLocks(context.locks, key, item.ignore));
-
-    if (existingLocks.length === 0) {
-      if (item.id) {
-        context.locks.push([item.id, item.keys, ...item.additional]);
+  for (const item of context.queue) {
+    const isActive = isLockActive(context, item);
+    if (isActive) {
+      const eventual = context.eventuals.get(item);
+      if (eventual) {
+        eventual.resolve(item.id);
+        context.eventuals.delete(eventual);
       }
-      context.queue.splice(index, 1);
-      item.resolve(item.id);
-      sync(context);
+      if (item.autoRemove) {
+        const index = context.queue.indexOf(item);
+        context.queue.splice(index, 1);
+        sync(context);
+      }
     }
-  });
-
-  const activeLocksWithDuplicates = context.locks.reduce((result, lock) => {
-    return result.concat(lock[1]);
-  }, []);
-
-  context.active = Array.from(new Set(activeLocksWithDuplicates));
+  }
 }
 
 function lockbase () {
-  const context = new EventEmitter();
+  const context = {
+    queue: [],
+    incremental: 0,
+    eventuals: new WeakMap()
+  };
 
-  context.locks = [];
-  context.queue = [];
-  context.active = [];
-
-  function add (keys, id, ...additional) {
-    return new Promise((resolve, reject) => {
-      id = id || uuid();
-      context.queue.push({ id, keys, additional, resolve, reject });
-      sync(context);
-    });
-  }
-
-  function remove (uuid) {
-    const index = context.locks.findIndex(lock => lock[0] === uuid);
-    if (index > -1) {
-      context.locks.splice(index, 1);
-      sync(context);
-      return true;
+  function add (path, meta = {}) {
+    if (!meta.id) {
+      context.incremental = context.incremental + 1;
+      meta.id = context.incremental;
     }
-  }
 
-  function cancel (error) {
-    context.queue.forEach((item, index) => {
-      context.queue.splice(index, 1);
-      item.reject(error || new Error('lockbase: all locks cancelled'));
-    });
-  }
-
-  function check (keys) {
-    const existingLocks = keys
-      .map(key => findExistingLocks(context.locks, key))
-      .filter(key => !!key);
-
-    return existingLocks[0];
-  }
-
-  function wait (keys, options) {
-    const ignore = options && options.ignore;
-    const queueItem = {};
+    const item = {
+      ...meta,
+      path
+    };
 
     const promise = new Promise((resolve, reject) => {
-      queueItem.ignore = ignore || [];
-      queueItem.keys = keys;
-      queueItem.resolve = resolve;
-      queueItem.reject = reject;
-      context.queue.push(queueItem);
+      context.queue.push(item);
+
+      context.eventuals.set(item, { resolve, reject });
+
       sync(context);
     });
 
-    promise.cancel = (error) => {
-      const index = context.queue.indexOf(queueItem);
-      context.queue.splice(index, 1);
-      queueItem.reject(error || new Error('lockbase: wait cancelled'));
+    promise.cancel = (customError) => {
+      const { reject } = context.eventuals.get(item);
+      reject(customError || new Error('lockbase: wait cancelled'));
     };
 
     return promise;
   }
 
-  Object.assign(context, {
-    setLocks: locks => {
-      context.locks = locks;
+  function remove (id) {
+    const index = context.queue.findIndex(item => item.id === id);
+    if (index > -1) {
+      context.queue.splice(index, 1);
       sync(context);
+      return true;
+    }
+  }
+
+  function cancel (customError) {
+    context.queue.forEach((item, index) => {
+      const eventual = context.eventuals.get(item);
+      eventual.reject(customError || new Error('lockbase: all locks cancelled'));
+    });
+
+    context.queue = [];
+    context.eventuals = new WeakMap();
+  }
+
+  function find (path) {
+    return context.queue
+      .filter(item => {
+        return item.path.startsWith(path);
+      })
+      .filter(item => {
+        return isLockActive(context, item);
+      });
+  }
+
+  function wait (path, ignore) {
+    return context.add(path, { ignore, autoRemove: true });
+  }
+
+  Object.assign(context, {
+    importState: newState => {
+      context.queue.forEach(item => {
+        const existingItem = newState.queue.find(newItem => newItem.id === item.id);
+
+        if (!existingItem) {
+          const eventual = context.eventuals.get(item);
+          eventual.reject(new Error('imported state did not hold lock'));
+        }
+      });
+      context.queue = newState.queue;
+      context.incremental = newState.incremental;
+      sync(context);
+    },
+
+    exportState: () => {
+      return {
+        queue: context.queue,
+        incremental: context.incremental
+      };
     },
 
     add,
     remove,
     cancel,
-    check,
+    find,
     wait
   });
 
   return context;
 }
+
+lockbase.isLockActive = isLockActive;
 
 module.exports = lockbase;
