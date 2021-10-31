@@ -9,14 +9,36 @@ test('remove wrong id', t => {
 });
 
 test('top level lock works', t => {
-  t.plan(2);
+  t.plan(5);
 
   const locks = lockbase();
+  locks.once('queue:insert', item => {
+    t.deepEqual(item, {
+      id: 1,
+      path: 'users'
+    });
+  });
+
+  locks.once('queue:remove', item => {
+    t.deepEqual(item, {
+      id: 1,
+      path: 'users'
+    });
+  });
 
   locks.add('users').then(lock => {
     t.pass();
+
     setTimeout(() => locks.remove(lock));
   });
+
+  locks.once('queue:insert', item => {
+    t.deepEqual(item, {
+      id: 2,
+      path: 'users'
+    });
+  });
+
   locks.add('users').then(lock => {
     t.pass();
     locks.remove(lock);

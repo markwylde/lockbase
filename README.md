@@ -58,6 +58,14 @@ If you are running multiple servers, where a primary server is used, you may nee
 
 You can export the lock state as a JSON object and import it into another server.
 
+## Queue and Events
+The queue holds all active locks, future locks and waits.
+
+The `lockbase` module is actually an [EventEmitter](https://nodejs.org/api/events.html#class-eventemitter) that emits two events:
+
+- `queue.insert` when an item is added to the queue
+- `queue.remove` when an item is removed
+
 ```javascript
 const exportedState = locks1.exportState();
 /*

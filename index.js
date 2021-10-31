@@ -1,3 +1,5 @@
+const EventEmitter = require('events');
+
 function isLockActive (context, testItem) {
   for (const item of context.queue) {
     const isIgnored = (testItem.ignore || []).find(ignoreId => ignoreId === item.id);
@@ -37,11 +39,11 @@ function sync (context) {
 }
 
 function lockbase () {
-  const context = {
+  const context = Object.assign(new EventEmitter(), {
     queue: [],
     incremental: 0,
     eventuals: new WeakMap()
-  };
+  });
 
   function add (path, meta = {}) {
     if (!meta.id) {
@@ -56,6 +58,7 @@ function lockbase () {
 
     const promise = new Promise((resolve, reject) => {
       context.queue.push(item);
+      context.emit('queue:insert', item);
 
       context.eventuals.set(item, { resolve, reject });
 
@@ -71,9 +74,11 @@ function lockbase () {
   }
 
   function remove (id) {
-    const index = context.queue.findIndex(item => item.id === id);
+    const item = context.queue.find(item => item.id === id);
+    const index = context.queue.indexOf(item);
     if (index > -1) {
       context.queue.splice(index, 1);
+      context.emit('queue:remove', item, index);
       sync(context);
       return true;
     }
