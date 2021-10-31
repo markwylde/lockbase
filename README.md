@@ -53,11 +53,6 @@ await locks.wait('users.email')
 locks.cancel(new Error('server is closing down'))
 ```
 
-## Export lock state
-If you are running multiple servers, where a primary server is used, you may need to hand over lock state. For example, if using [raft](https://raft.github.io/), following a leader election.
-
-You can export the lock state as a JSON object and import it into another server.
-
 ## Queue and Events
 The queue holds all active locks, future locks and waits.
 
@@ -65,6 +60,21 @@ The `lockbase` module is actually an [EventEmitter](https://nodejs.org/api/event
 
 - `queue.insert` when an item is added to the queue
 - `queue.remove` when an item is removed
+
+```javascript
+locks.on('queue.insert', item => {
+  console.log('item has been inserted', item);
+});
+
+locks.on('queue.remove', item => {
+  console.log('item has been removed', item);
+});
+```
+
+## Export lock state
+If you are running multiple servers, where a primary server is used, you may need to hand over lock state. For example, if using [raft](https://raft.github.io/), following a leader election.
+
+You can export the lock state as a JSON object and import it into another server.
 
 ```javascript
 const exportedState = locks1.exportState();
