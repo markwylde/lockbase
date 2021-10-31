@@ -20,6 +20,8 @@ The `lockbase` module has the following methods:
 - `wait` for key to have no more locks
 - `importState`
 - `exportState`
+- `on` for adding a listener
+- `off` for removing a listener
 
 ```javascript
 import lockbase from 'lockbase';
