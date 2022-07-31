@@ -59,6 +59,7 @@ function lockbase () {
     const promise = new Promise((resolve, reject) => {
       context.queue.push(item);
       context.emit('queue:insert', item);
+      context.emit('change', { eventName: 'queue:insert', item });
 
       context.eventuals.set(item, { resolve, reject });
 
@@ -79,6 +80,7 @@ function lockbase () {
     if (index > -1) {
       context.queue.splice(index, 1);
       context.emit('queue:remove', item, index);
+      context.emit('change', { eventName: 'queue:remove', item });
       sync(context);
       return true;
     }

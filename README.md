@@ -60,8 +60,8 @@ The queue holds all active locks, future locks and waits.
 
 The `lockbase` module is actually an [EventEmitter](https://nodejs.org/api/events.html#class-eventemitter) that emits two events:
 
-- `queue.insert` when an item is added to the queue
-- `queue.remove` when an item is removed
+- `queue:insert` when an item is added to the queue
+- `queue:remove` when an item is removed
 
 ```javascript
 locks.on('queue.insert', item => {
@@ -70,6 +70,10 @@ locks.on('queue.insert', item => {
 
 locks.on('queue.remove', item => {
   console.log('item has been removed', item);
+});
+
+locks.on('change', ({ item, event } => {
+  console.log(`item has been ${event}`, { event, item });
 });
 ```
 

@@ -1,6 +1,8 @@
 const lockbase = require('../');
 const test = require('basictap');
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 test('remove wrong id', t => {
   t.plan(1);
 
@@ -8,26 +10,33 @@ test('remove wrong id', t => {
   t.notOk(locks.remove('not found'), 'lock could not be found');
 });
 
-test('top level lock works', t => {
-  t.plan(5);
+test('top level lock works', async t => {
+  t.plan(6);
 
   const locks = lockbase();
+
+  const changeEvents = [];
+
+  locks.on('change', item => {
+    changeEvents.push(item);
+  });
+
   locks.once('queue:insert', item => {
     t.deepEqual(item, {
       id: 1,
       path: 'users'
-    });
+    }, 'queue:insert was emitted');
   });
 
   locks.once('queue:remove', item => {
     t.deepEqual(item, {
       id: 1,
       path: 'users'
-    });
+    }, 'queue:remove was emitted');
   });
 
   locks.add('users').then(lock => {
-    t.pass();
+    t.pass('locks.add resolved');
 
     setTimeout(() => locks.remove(lock));
   });
@@ -36,13 +45,22 @@ test('top level lock works', t => {
     t.deepEqual(item, {
       id: 2,
       path: 'users'
-    });
+    }, 'queue.insert was emitted');
   });
 
   locks.add('users').then(lock => {
-    t.pass();
+    t.pass('locks.add resolved');
     locks.remove(lock);
   });
+
+  await sleep(250);
+
+  t.deepEqual(changeEvents, [
+    { eventName: 'queue:insert', item: { id: 1, path: 'users' } },
+    { eventName: 'queue:insert', item: { id: 2, path: 'users' } },
+    { eventName: 'queue:remove', item: { id: 1, path: 'users' } },
+    { eventName: 'queue:remove', item: { id: 2, path: 'users' } }
+  ]);
 });
 
 test('list existing locks', async t => {
