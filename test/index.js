@@ -1,12 +1,11 @@
-const lockbase = require('../');
-const test = require('basictap');
-
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+import lockbase from '../index.js';
+import test from 'basictap';
 
 test('remove wrong id', t => {
   t.plan(1);
 
   const locks = lockbase();
+
   t.notOk(locks.remove('not found'), 'lock could not be found');
 });
 
@@ -53,14 +52,14 @@ test('top level lock works', async t => {
     locks.remove(lock);
   });
 
-  await sleep(250);
-
-  t.deepEqual(changeEvents, [
-    { eventName: 'queue:insert', item: { id: 1, path: 'users' } },
-    { eventName: 'queue:insert', item: { id: 2, path: 'users' } },
-    { eventName: 'queue:remove', item: { id: 1, path: 'users' } },
-    { eventName: 'queue:remove', item: { id: 2, path: 'users' } }
-  ]);
+  await t.waitFor(() => {
+    t.deepEqual(changeEvents, [
+      { eventName: 'queue:insert', item: { id: 1, path: 'users' } },
+      { eventName: 'queue:insert', item: { id: 2, path: 'users' } },
+      { eventName: 'queue:remove', item: { id: 1, path: 'users' } },
+      { eventName: 'queue:remove', item: { id: 2, path: 'users' } }
+    ]);
+  });
 });
 
 test('list existing locks', async t => {
@@ -268,7 +267,7 @@ test('locks wait with multiple ignores', async t => {
   t.pass();
 });
 
-test('manually mutate state - rejects missing locks', async t => {
+test('manually mutate state - resolves missing locks', async t => {
   t.plan(2);
 
   const locks = lockbase();
@@ -276,9 +275,9 @@ test('manually mutate state - rejects missing locks', async t => {
   await locks.add('users');
 
   locks.add('users').then(() => {
-    t.fail('second lock should not be applied');
-  }).catch((error) => {
-    t.equal(error.message, 'imported state did not hold lock');
+    t.pass('second lock was applied');
+  }).catch(() => {
+    t.fail('second lock should not have failed');
   });
 
   locks.wait('users').then(() => {
@@ -344,6 +343,32 @@ test('wait cancelled', async t => {
     t.equal(error.message, 'lockbase: wait cancelled');
   });
   wait.cancel();
+});
+
+test('wait cancelled does not throw if not set', async t => {
+  t.plan(1);
+
+  const locks = lockbase();
+
+  const lockId = await locks.add('users.email');
+
+  setTimeout(() => {
+    locks.remove(lockId);
+  }, 200);
+
+  const wait = locks.wait('users.email');
+  wait.then(() => {
+    t.pass('wait was resolved');
+  });
+
+  locks.importState({
+    queue: [
+      { id: lockId, path: 'users.email' },
+      { ignore: undefined, autoRemove: true, id: 2, path: 'users.email' }
+      // { id: 2, path: 'users.email' }
+    ],
+    incremental: 2
+  });
 });
 
 test('wait cancelled with custom error', async t => {

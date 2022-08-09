@@ -1,4 +1,4 @@
-const EventEmitter = require('events');
+import EventEmitter from 'events';
 
 function isLockActive (context, testItem) {
   for (const item of context.queue) {
@@ -24,10 +24,10 @@ function sync (context) {
   for (const item of context.queue) {
     const isActive = isLockActive(context, item);
     if (isActive) {
-      const eventual = context.eventuals.get(item);
+      const eventual = context.eventuals[item.id];
       if (eventual) {
         eventual.resolve(item.id);
-        context.eventuals.delete(eventual);
+        delete context.eventuals[item.id];
       }
       if (item.autoRemove) {
         const index = context.queue.indexOf(item);
@@ -42,7 +42,7 @@ function lockbase () {
   const context = Object.assign(new EventEmitter(), {
     queue: [],
     incremental: 0,
-    eventuals: new WeakMap()
+    eventuals: {}
   });
 
   function add (path, meta = {}) {
@@ -61,13 +61,13 @@ function lockbase () {
       context.emit('queue:insert', item);
       context.emit('change', { eventName: 'queue:insert', item });
 
-      context.eventuals.set(item, { resolve, reject });
+      context.eventuals[item.id] = { resolve, reject };
 
       sync(context);
     });
 
     promise.cancel = (customError) => {
-      const { reject } = context.eventuals.get(item);
+      const { reject } = context.eventuals[item.id];
       reject(customError || new Error('lockbase: wait cancelled'));
     };
 
@@ -88,12 +88,12 @@ function lockbase () {
 
   function cancel (customError) {
     context.queue.forEach((item, index) => {
-      const eventual = context.eventuals.get(item);
-      eventual.reject(customError || new Error('lockbase: all locks cancelled'));
+      const eventual = context.eventuals[item.id];
+      eventual?.reject(customError || new Error('lockbase: all locks cancelled'));
     });
 
     context.queue = [];
-    context.eventuals = new WeakMap();
+    context.eventuals = {};
   }
 
   function find (path) {
@@ -113,11 +113,11 @@ function lockbase () {
   Object.assign(context, {
     importState: newState => {
       context.queue.forEach(item => {
-        const existingItem = newState.queue.find(newItem => newItem.id === item.id);
+        const lockExistsInNewState = newState.queue.find(newItem => newItem.id === item.id);
 
-        if (!existingItem) {
-          const eventual = context.eventuals.get(item);
-          eventual.reject(new Error('imported state did not hold lock'));
+        if (!lockExistsInNewState) {
+          const eventual = context.eventuals[item.id];
+          eventual?.resolve();
         }
       });
       context.queue = newState.queue;
@@ -144,4 +144,4 @@ function lockbase () {
 
 lockbase.isLockActive = isLockActive;
 
-module.exports = lockbase;
+export default lockbase;
