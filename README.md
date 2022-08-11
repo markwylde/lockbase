@@ -62,6 +62,7 @@ The `lockbase` module is actually an [EventEmitter](https://nodejs.org/api/event
 
 - `queue:insert` when an item is added to the queue
 - `queue:remove` when an item is removed
+- `resolved:{id}` when an item is resolved
 
 ```javascript
 locks.on('queue.insert', item => {
@@ -71,6 +72,11 @@ locks.on('queue.insert', item => {
 locks.on('queue.remove', item => {
   console.log('item has been removed', item);
 });
+
+locks.on('resolved.abcd', item => {
+  console.log('item abcd has been resolved', item);
+});
+
 
 locks.on('change', ({ item, event } => {
   console.log(`item has been ${event}`, { event, item });

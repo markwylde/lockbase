@@ -29,6 +29,7 @@ function sync (context) {
         eventual.resolve(item.id);
         delete context.eventuals[item.id];
       }
+      context.emit('resolved.' + item.id);
       if (item.autoRemove) {
         const index = context.queue.indexOf(item);
         context.queue.splice(index, 1);
@@ -118,6 +119,7 @@ function lockbase () {
         if (!lockExistsInNewState) {
           const eventual = context.eventuals[item.id];
           eventual?.resolve();
+          context.emit('resolved.' + item.id);
         }
       });
       context.queue = newState.queue;
