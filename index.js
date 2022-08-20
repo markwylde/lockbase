@@ -81,7 +81,6 @@ function lockbase () {
   function cancel (customError) {
     context.queue.forEach((item, index) => {
       const eventual = context.eventuals[item.id];
-      console.log('>>>>', !!eventual);
       eventual?.reject(customError || new Error('lockbase: all locks cancelled'));
     });
 
