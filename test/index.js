@@ -75,6 +75,80 @@ test('list existing locks', async t => {
   t.deepEqual(active, ['users1', 'users2']);
 });
 
+test('cancel all locks', async t => {
+  t.plan(2);
+
+  const locks = lockbase();
+
+  locks.add('users1', { id: 1 });
+  const lock2 = locks.add('users1', { id: 2 });
+
+  lock2.catch(error => {
+    t.equal(error.message, 'lockbase: all locks cancelled');
+  });
+
+  locks.cancel();
+
+  t.deepEqual(locks.queue, []);
+});
+
+test('cancel all locks - custom error message', async t => {
+  t.plan(2);
+
+  const locks = lockbase();
+
+  locks.add('users1', { id: 1 });
+  const lock2 = locks.add('users1', { id: 2 });
+
+  lock2.catch(error => {
+    t.equal(error.message, 'boo');
+  });
+
+  locks.cancel(new Error('boo'));
+
+  t.deepEqual(locks.queue, []);
+});
+
+test('cancel lock before add', async t => {
+  t.plan(2);
+
+  const locks = lockbase();
+
+  locks.add('users1', { id: 1 });
+  const lock2 = locks.add('users1', { id: 2 });
+
+  lock2.catch(error => {
+    t.equal(error.message, 'lockbase: wait cancelled');
+  });
+
+  lock2.cancel();
+
+  t.deepEqual(locks.queue, [{
+    id: 1,
+    path: 'users1'
+  }]);
+});
+
+test('cancel lock before add - with custom error message', async t => {
+  t.plan(2);
+
+  const locks = lockbase();
+
+  locks.add('users1', { id: 1 });
+  const lock2 = locks.add('users1', { id: 2 });
+
+  lock2.catch(error => {
+    t.equal(error.message, 'boo');
+  });
+
+  lock2.cancel(new Error('boo'));
+
+  t.deepEqual(locks.queue, [{
+    id: 1,
+    path: 'users1'
+  }]);
+});
+
 test('add lock with additional meta data', async t => {
   t.plan(1);
 

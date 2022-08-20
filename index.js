@@ -3,12 +3,6 @@ import deferredPromise from './deferredPromise.js';
 
 function isLockActive (context, testItem) {
   for (const item of context.queue) {
-    const isIgnored = (testItem.ignore || []).find(ignoreId => ignoreId === item.id);
-
-    if (isIgnored) {
-      continue;
-    }
-
     if (item === testItem) {
       return true;
     }
@@ -64,6 +58,7 @@ function lockbase () {
     });
 
     promise.cancel = (customError) => {
+      remove(item.id);
       const { reject } = context.eventuals[item.id];
       reject(customError || new Error('lockbase: wait cancelled'));
     };
@@ -86,6 +81,7 @@ function lockbase () {
   function cancel (customError) {
     context.queue.forEach((item, index) => {
       const eventual = context.eventuals[item.id];
+      console.log('>>>>', !!eventual);
       eventual?.reject(customError || new Error('lockbase: all locks cancelled'));
     });
 
