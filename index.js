@@ -1,4 +1,5 @@
 import EventEmitter from 'events';
+import deferredPromise from './deferredPromise.js';
 
 function isLockActive (context, testItem) {
   for (const item of context.queue) {
@@ -30,11 +31,6 @@ function sync (context) {
         delete context.eventuals[item.id];
       }
       context.emit('resolved.' + item.id);
-      if (item.autoRemove) {
-        const index = context.queue.indexOf(item);
-        context.queue.splice(index, 1);
-        sync(context);
-      }
     }
   }
 }
@@ -95,6 +91,8 @@ function lockbase () {
 
     context.queue = [];
     context.eventuals = {};
+
+    context.emit('cancel', customError || new Error('lockbase: all locks cancelled'));
   }
 
   function find (path) {
@@ -108,7 +106,33 @@ function lockbase () {
   }
 
   function wait (path, ignore) {
-    return context.add(path, { ignore, autoRemove: true });
+    const { promise, resolve, reject } = deferredPromise();
+
+    promise.cancel = (error) => {
+      context.off('change', check);
+      context.off('cancel', promise.cancel);
+      reject(error || new Error('lockbase: wait cancelled'));
+    };
+
+    const check = () => {
+      const initialFindResults = find(path)
+        .filter(item => item.id !== ignore);
+
+      if (initialFindResults.length === 0) {
+        context.off('change', check);
+        context.off('cancel', promise.cancel);
+        resolve();
+        return true;
+      }
+    };
+    if (check()) {
+      return;
+    }
+
+    context.on('cancel', promise.cancel);
+    context.on('change', check);
+
+    return promise;
   }
 
   Object.assign(context, {
@@ -125,6 +149,7 @@ function lockbase () {
       context.queue = newState.queue;
       context.incremental = newState.incremental;
       sync(context);
+      context.emit('change');
     },
 
     exportState: () => {

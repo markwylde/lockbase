@@ -242,7 +242,7 @@ test('locks wait with ignore', async t => {
     removed = true;
   });
 
-  await locks.wait('users', [lockId]);
+  await locks.wait('users', lockId);
   if (removed) {
     t.fail('should have resolved before removal');
     return;
@@ -363,8 +363,7 @@ test('wait cancelled does not throw if not set', async t => {
 
   locks.importState({
     queue: [
-      { id: lockId, path: 'users.email' },
-      { ignore: undefined, autoRemove: true, id: 2, path: 'users.email' }
+      { id: lockId, path: 'users.email' }
       // { id: 2, path: 'users.email' }
     ],
     incremental: 2
@@ -423,6 +422,62 @@ test('locks being waited fail when cancelled with custom error', t => {
     .catch(error => {
       t.equal(error.message, 'why?');
     });
+});
+
+test('emit events after multiple locks added', async t => {
+  t.plan(3);
+
+  const locks = lockbase();
+
+  locks.once('resolved.one', () => {
+    t.pass('resolved first lock');
+  });
+
+  locks.once('resolved.two', () => {
+    t.pass('resolved second lock');
+  });
+
+  locks.add('users.email', { id: 'one' });
+  locks.add('users.email', { id: 'two' }).then(() => {
+    t.pass('second lock took priority');
+    locks.remove('two');
+  });
+
+  locks.remove('one');
+});
+
+test('locks being waited remain when reimported', async t => {
+  t.plan(5);
+
+  const locks = lockbase();
+
+  locks.once('resolved.one', () => {
+    t.pass('resolved first lock');
+  });
+
+  locks.once('resolved.two', () => {
+    t.pass('resolved second lock');
+  });
+
+  locks.add('users.email', { id: 'one' }).then(() => {
+    t.pass('first lock took priority');
+  });
+  locks.add('users.email', { id: 'two' }).then(() => {
+    t.pass('second lock took priority');
+    locks.remove('two');
+  });
+
+  locks.wait('users.email')
+    .then(lock => {
+      t.pass('wait was released');
+    });
+
+  locks.importState(
+    // stringified to lose any state
+    JSON.parse(JSON.stringify(locks.exportState()))
+  );
+
+  locks.remove('one');
 });
 
 test('isLockActive - empty queue', t => {
