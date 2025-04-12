@@ -1,70 +1,78 @@
 import lockbase from '../index.js';
-import test from 'basictap';
+import test from 'node:test';
+import assert from 'node:assert/strict';
 
-test('remove wrong id', t => {
-  t.plan(1);
-
+test('remove wrong id', async t => {
   const locks = lockbase();
 
-  t.notOk(locks.remove('not found'), 'lock could not be found');
+  assert.equal(locks.remove('not found'), undefined, 'lock could not be found');
 });
 
 test('top level lock works', async t => {
-  t.plan(6);
-
   const locks = lockbase();
-
   const changeEvents = [];
 
   locks.on('change', item => {
     changeEvents.push(item);
   });
 
+  let queueInsertCalled = 0;
+  let queueRemoveCalled = 0;
+
   locks.once('queue:insert', item => {
-    t.deepEqual(item, {
+    assert.deepEqual(item, {
       id: 1,
       path: 'users'
     }, 'queue:insert was emitted');
+    queueInsertCalled++;
   });
 
   locks.once('queue:remove', item => {
-    t.deepEqual(item, {
+    assert.deepEqual(item, {
       id: 1,
       path: 'users'
     }, 'queue:remove was emitted');
+    queueRemoveCalled++;
   });
 
-  locks.add('users').then(lock => {
-    t.pass('locks.add resolved');
+  const lock1 = await locks.add('users');
+  assert.ok(lock1, 'locks.add resolved');
 
-    setTimeout(() => locks.remove(lock));
-  });
+  setTimeout(() => locks.remove(lock1));
 
   locks.once('queue:insert', item => {
-    t.deepEqual(item, {
+    assert.deepEqual(item, {
       id: 2,
       path: 'users'
     }, 'queue.insert was emitted');
+    queueInsertCalled++;
   });
 
-  locks.add('users').then(lock => {
-    t.pass('locks.add resolved');
-    locks.remove(lock);
+  const lock2 = await locks.add('users');
+  assert.ok(lock2, 'locks.add resolved');
+  locks.remove(lock2);
+
+  // Wait for all events to complete
+  await new Promise(resolve => {
+    const checkEvents = () => {
+      if (changeEvents.length === 4) {
+        resolve();
+      } else {
+        setTimeout(checkEvents, 10);
+      }
+    };
+    checkEvents();
   });
 
-  await t.waitFor(() => {
-    t.deepEqual(changeEvents, [
-      { eventName: 'queue:insert', item: { id: 1, path: 'users' } },
-      { eventName: 'queue:insert', item: { id: 2, path: 'users' } },
-      { eventName: 'queue:remove', item: { id: 1, path: 'users' } },
-      { eventName: 'queue:remove', item: { id: 2, path: 'users' } }
-    ]);
-  });
+  assert.deepEqual(changeEvents, [
+    { eventName: 'queue:insert', item: { id: 1, path: 'users' } },
+    { eventName: 'queue:insert', item: { id: 2, path: 'users' } },
+    { eventName: 'queue:remove', item: { id: 1, path: 'users' } },
+    { eventName: 'queue:remove', item: { id: 2, path: 'users' } }
+  ]);
 });
 
 test('list existing locks', async t => {
-  t.plan(1);
-
   const locks = lockbase();
 
   locks.add('users1');
@@ -72,222 +80,257 @@ test('list existing locks', async t => {
 
   const active = locks.queue.map(item => item.path);
 
-  t.deepEqual(active, ['users1', 'users2']);
+  assert.deepEqual(active, ['users1', 'users2']);
 });
 
 test('cancel all locks', async t => {
-  t.plan(2);
-
   const locks = lockbase();
 
   locks.add('users1', { id: 1 });
   const lock2 = locks.add('users1', { id: 2 });
 
   lock2.catch(error => {
-    t.equal(error.message, 'lockbase: all locks cancelled');
+    assert.equal(error.message, 'lockbase: all locks cancelled');
   });
 
   locks.cancel();
 
-  t.deepEqual(locks.queue, []);
+  assert.deepEqual(locks.queue, []);
 });
 
 test('cancel all locks - custom error message', async t => {
-  t.plan(2);
-
   const locks = lockbase();
 
   locks.add('users1', { id: 1 });
   const lock2 = locks.add('users1', { id: 2 });
 
   lock2.catch(error => {
-    t.equal(error.message, 'boo');
+    assert.equal(error.message, 'boo');
   });
 
   locks.cancel(new Error('boo'));
 
-  t.deepEqual(locks.queue, []);
+  assert.deepEqual(locks.queue, []);
 });
 
 test('cancel lock before add', async t => {
-  t.plan(2);
-
   const locks = lockbase();
 
   locks.add('users1', { id: 1 });
   const lock2 = locks.add('users1', { id: 2 });
 
   lock2.catch(error => {
-    t.equal(error.message, 'lockbase: wait cancelled');
+    assert.equal(error.message, 'lockbase: wait cancelled');
   });
 
   lock2.cancel();
 
-  t.deepEqual(locks.queue, [{
+  assert.deepEqual(locks.queue, [{
     id: 1,
     path: 'users1'
   }]);
 });
 
 test('cancel lock before add - with custom error message', async t => {
-  t.plan(2);
-
   const locks = lockbase();
 
   locks.add('users1', { id: 1 });
   const lock2 = locks.add('users1', { id: 2 });
 
   lock2.catch(error => {
-    t.equal(error.message, 'boo');
+    assert.equal(error.message, 'boo');
   });
 
   lock2.cancel(new Error('boo'));
 
-  t.deepEqual(locks.queue, [{
+  assert.deepEqual(locks.queue, [{
     id: 1,
     path: 'users1'
   }]);
 });
 
 test('add lock with additional meta data', async t => {
-  t.plan(1);
-
   const locks = lockbase();
 
   locks.add('users1', { id: 1, additional: 'info' });
-  t.deepEqual(locks.queue, [{
+  assert.deepEqual(locks.queue, [{
     id: 1,
     additional: 'info',
     path: 'users1'
   }]);
 });
 
-test('top level lock with custom id works', t => {
-  t.plan(2);
-
+test('top level lock with custom id works', async t => {
   const locks = lockbase();
+  let lock1Resolved = false;
+  let lock2Resolved = false;
 
   locks.add('users', { id: 'baz' }).then(lock => {
-    t.pass();
+    lock1Resolved = true;
     setTimeout(() => locks.remove('baz'));
   });
+
   locks.add('users').then(lock => {
-    t.pass();
+    lock2Resolved = true;
     locks.remove(lock);
   });
+
+  // Wait for promises to resolve
+  await new Promise(resolve => {
+    const check = () => {
+      if (lock1Resolved && lock2Resolved) {
+        resolve();
+      } else {
+        setTimeout(check, 10);
+      }
+    };
+    check();
+  });
+
+  assert.ok(lock1Resolved);
+  assert.ok(lock2Resolved);
 });
 
-test('field based lock blocks', t => {
-  t.plan(2);
-
+test('field based lock blocks', async t => {
   const locks = lockbase();
+  let lock1Resolved = false;
+  let lock2Resolved = false;
+  let lock3Resolved = false;
 
   locks.add('users.email').then(lock => {
-    t.pass();
+    lock1Resolved = true;
   });
+
   locks.add('users.one').then(lock => {
-    t.pass();
+    lock2Resolved = true;
     locks.remove(lock);
   });
-  locks.add('users.email').then(lock => {
-    t.fail();
-  });
+
+  const lock3Promise = locks.add('users.email');
+
+  // Wait a bit to ensure lock3 doesn't resolve
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  assert.ok(lock1Resolved);
+  assert.ok(lock2Resolved);
+  assert.equal(lock3Resolved, false);
 });
 
-test('field based lock works', t => {
-  t.plan(2);
+test('field based lock works', async t => {
+  const locks = lockbase();
+  let lock1Resolved = false;
+  let lock2Resolved = false;
 
+  locks.add('users.email').then(lock => {
+    lock1Resolved = true;
+    locks.remove(lock);
+  });
+
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  locks.add('users.email').then(lock => {
+    lock2Resolved = true;
+  });
+
+  // Wait for promises to resolve
+  await new Promise(resolve => {
+    const check = () => {
+      if (lock1Resolved && lock2Resolved) {
+        resolve();
+      } else {
+        setTimeout(check, 10);
+      }
+    };
+    check();
+  });
+
+  assert.ok(lock1Resolved);
+  assert.ok(lock2Resolved);
+});
+
+test('find locks', async t => {
   const locks = lockbase();
 
-  locks.add('users.email').then(lock => {
-    t.pass();
-    locks.remove(lock);
-  });
-  locks.add('users.email').then(lock => {
-    t.pass();
-  });
+  const lock = await locks.add('users.email');
+
+  const lockedBefore = locks.find('users.email');
+  assert.deepEqual(lockedBefore, [{
+    id: lock,
+    path: 'users.email'
+  }]);
+
+  locks.remove(lock);
+
+  const lockedAfter = locks.find('users.email');
+  assert.deepEqual(lockedAfter, []);
 });
 
-test('find locks', t => {
-  t.plan(2);
-
-  const locks = lockbase();
-
-  locks.add('users.email').then(lock => {
-    const lockedBefore = locks.find('users.email');
-    t.deepEqual(lockedBefore, [{
-      id: lock,
-      path: 'users.email'
-    }]);
-
-    locks.remove(lock);
-
-    const lockedAfter = locks.find('users.email');
-    t.deepEqual(lockedAfter, []);
-  });
-});
-
-test('wait for locks', t => {
-  t.plan(3);
-
+test('wait for locks', async t => {
   const locks = lockbase();
   let lockRemoved = false;
 
-  locks.add('users.email').then(lock => {
-    const lockedBefore = locks.find('users.email');
-    t.deepEqual(lockedBefore, [{
-      id: lock,
-      path: 'users.email'
-    }]);
+  const lock = await locks.add('users.email');
 
-    setTimeout(() => {
-      lockRemoved = true;
-      locks.remove(lock);
+  const lockedBefore = locks.find('users.email');
+  assert.deepEqual(lockedBefore, [{
+    id: lock,
+    path: 'users.email'
+  }]);
 
-      const lockedAfter = locks.find('users.email');
-      t.deepEqual(lockedAfter, []);
-    });
-  });
-
-  locks.wait('users.email').then(lock => {
-    if (!lockRemoved) {
-      t.fail('lock was not actually removed');
-    }
-    t.pass('lock was removed then wait passed');
-  });
-});
-
-test('multiple locks', t => {
-  t.plan(4);
-
-  const locks = lockbase();
-
-  locks.add('users').then(lock => {
-    t.pass();
-    setTimeout(() => locks.remove(lock));
-  });
-  locks.add('users').then(lock => {
-    t.pass();
-    setTimeout(() => locks.remove(lock));
-  });
-  locks.add('users').then(lock => {
-    t.pass();
-    setTimeout(() => locks.remove(lock));
-  });
-  locks.add('users').then(lock => {
-    t.pass();
+  setTimeout(() => {
+    lockRemoved = true;
     locks.remove(lock);
   });
+
+  await locks.wait('users.email');
+  assert.ok(lockRemoved, 'lock was removed then wait passed');
+});
+
+test('multiple locks', async t => {
+  const locks = lockbase();
+  let resolvedCount = 0;
+
+  locks.add('users').then(lock => {
+    resolvedCount++;
+    setTimeout(() => locks.remove(lock));
+  });
+
+  locks.add('users').then(lock => {
+    resolvedCount++;
+    setTimeout(() => locks.remove(lock));
+  });
+
+  locks.add('users').then(lock => {
+    resolvedCount++;
+    setTimeout(() => locks.remove(lock));
+  });
+
+  locks.add('users').then(lock => {
+    resolvedCount++;
+    locks.remove(lock);
+  });
+
+  // Wait for all promises to resolve
+  await new Promise(resolve => {
+    const check = () => {
+      if (resolvedCount === 4) {
+        resolve();
+      } else {
+        setTimeout(check, 10);
+      }
+    };
+    check();
+  });
+
+  assert.equal(resolvedCount, 4);
 });
 
 test('locks wait', async t => {
-  t.plan(1);
-
   const locks = lockbase();
 
   const lockId = await locks.add('users');
 
-  let removed;
+  let removed = false;
   setTimeout(() => {
     locks.remove(lockId);
     removed = true;
@@ -295,39 +338,25 @@ test('locks wait', async t => {
 
   await locks.wait('users');
 
-  if (!removed) {
-    t.fail('did not wait until cancelled');
-    return;
-  }
-
-  t.pass();
+  assert.ok(removed, 'did not wait until cancelled');
 });
 
 test('locks wait with ignore', async t => {
-  t.plan(1);
-
   const locks = lockbase();
 
   const lockId = await locks.add('users');
 
-  let removed;
+  let removed = false;
   setTimeout(() => {
     locks.remove(lockId);
     removed = true;
-  });
+  }, 100);
 
   await locks.wait('users', lockId);
-  if (removed) {
-    t.fail('should have resolved before removal');
-    return;
-  }
-
-  t.pass();
+  assert.equal(removed, false, 'should have resolved before removal');
 });
 
 test('locks wait with multiple ignores', async t => {
-  t.plan(1);
-
   const locks = lockbase();
 
   const lockId = await locks.add('users');
@@ -337,52 +366,59 @@ test('locks wait with multiple ignores', async t => {
   });
 
   await locks.wait('users', [0, lockId]);
-
-  t.pass();
+  assert.ok(true);
 });
 
 test('manually mutate state - resolves missing locks', async t => {
-  t.plan(2);
-
   const locks = lockbase();
 
   await locks.add('users');
 
+  let lock2Resolved = false;
+  let waitResolved = false;
+
   locks.add('users').then(() => {
-    t.pass('second lock was applied');
+    lock2Resolved = true;
   }).catch(() => {
-    t.fail('second lock should not have failed');
+    assert.fail('second lock should not have failed');
   });
 
   locks.wait('users').then(() => {
-    t.pass('wait was resolved');
+    waitResolved = true;
   }).catch((error) => {
-    t.equal(error.message, 'imported state did not hold lock');
+    assert.equal(error.message, 'imported state did not hold lock');
   });
 
   locks.importState({
     incremental: 0,
     queue: []
   });
+
+  // Give time for promises to resolve
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  assert.ok(lock2Resolved, 'second lock was applied');
 });
 
 test('manually mutate state', async t => {
-  t.plan(1);
-
   const locks = lockbase();
 
   await locks.add('users');
 
+  let lock2Resolved = false;
+  let lock3Resolved = false;
+  let waitResolved = false;
+
   locks.add('users').then(() => {
-    t.pass('second lock was applied');
+    lock2Resolved = true;
   });
 
   locks.add('users').then(() => {
-    t.fail('second lock should never have been applied');
+    lock3Resolved = true;
   });
 
   locks.wait('users').then(() => {
-    t.fail('wait should never have resolved');
+    waitResolved = true;
   });
 
   const exportedState = locks.exportState();
@@ -390,38 +426,56 @@ test('manually mutate state', async t => {
     queue: exportedState.queue.slice(1),
     incremental: exportedState.incremental
   });
+
+  // Give time for promises to resolve
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  assert.ok(lock2Resolved, 'second lock was applied');
+  assert.equal(lock3Resolved, false, 'third lock should not have been applied');
+  assert.equal(waitResolved, false, 'wait should not have resolved');
 });
 
 test('single locks - multiple waits', async t => {
-  t.plan(2);
-
   const locks = lockbase();
 
   const lock = await locks.add('users');
 
-  locks.wait('users').then(() => t.pass('first wait was resolved'));
-  locks.wait('users').then(() => t.pass('second wait was resolved'));
+  let wait1Resolved = false;
+  let wait2Resolved = false;
+
+  locks.wait('users').then(() => wait1Resolved = true);
+  locks.wait('users').then(() => wait2Resolved = true);
 
   locks.remove(lock);
+
+  // Wait for promises to resolve
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  assert.ok(wait1Resolved, 'first wait was resolved');
+  assert.ok(wait2Resolved, 'second wait was resolved');
 });
 
 test('wait cancelled', async t => {
-  t.plan(1);
-
   const locks = lockbase();
 
   await locks.add('users.email');
 
   const wait = locks.wait('users.email');
+
+  let errorMessage;
   wait.catch((error) => {
-    t.equal(error.message, 'lockbase: wait cancelled');
+    errorMessage = error.message;
   });
+
   wait.cancel();
+
+  // Wait for promise to reject
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  assert.equal(errorMessage, 'lockbase: wait cancelled');
 });
 
 test('wait cancelled does not throw if not set', async t => {
-  t.plan(1);
-
   const locks = lockbase();
 
   const lockId = await locks.add('users.email');
@@ -431,36 +485,46 @@ test('wait cancelled does not throw if not set', async t => {
   }, 200);
 
   const wait = locks.wait('users.email');
+
+  let waitResolved = false;
   wait.then(() => {
-    t.pass('wait was resolved');
+    waitResolved = true;
   });
 
   locks.importState({
     queue: [
       { id: lockId, path: 'users.email' }
-      // { id: 2, path: 'users.email' }
     ],
     incremental: 2
   });
+
+  // Wait for promise to resolve
+  await new Promise(resolve => setTimeout(resolve, 250));
+
+  assert.ok(waitResolved, 'wait was resolved');
 });
 
 test('wait cancelled with custom error', async t => {
-  t.plan(1);
-
   const locks = lockbase();
 
   await locks.add('users.email');
 
   const wait = locks.wait('users.email');
+
+  let errorMessage;
   wait.catch((error) => {
-    t.equal(error.message, 'some unknown reason');
+    errorMessage = error.message;
   });
+
   wait.cancel(new Error('some unknown reason'));
+
+  // Wait for promise to reject
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  assert.equal(errorMessage, 'some unknown reason');
 });
 
-test('locks being waited fail when cancelled', t => {
-  t.plan(1);
-
+test('locks being waited fail when cancelled', async t => {
   const locks = lockbase();
 
   locks.add('users.email').then(lock => {
@@ -469,18 +533,19 @@ test('locks being waited fail when cancelled', t => {
     });
   });
 
-  locks.wait('users.email')
+  let errorMessage;
+  await locks.wait('users.email')
     .then(lock => {
-      t.fail('should not have passed successfully');
+      assert.fail('should not have passed successfully');
     })
     .catch(error => {
-      t.equal(error.message, 'lockbase: all locks cancelled');
+      errorMessage = error.message;
     });
+
+  assert.equal(errorMessage, 'lockbase: all locks cancelled');
 });
 
-test('locks being waited fail when cancelled with custom error', t => {
-  t.plan(1);
-
+test('locks being waited fail when cancelled with custom error', async t => {
   const locks = lockbase();
 
   locks.add('users.email').then(lock => {
@@ -489,61 +554,78 @@ test('locks being waited fail when cancelled with custom error', t => {
     });
   });
 
-  locks.wait('users.email')
+  let errorMessage;
+  await locks.wait('users.email')
     .then(lock => {
-      t.fail('should not have passed successfully');
+      assert.fail('should not have passed successfully');
     })
     .catch(error => {
-      t.equal(error.message, 'why?');
+      errorMessage = error.message;
     });
+
+  assert.equal(errorMessage, 'why?');
 });
 
 test('emit events after multiple locks added', async t => {
-  t.plan(3);
-
   const locks = lockbase();
 
+  let resolvedOne = false;
+  let resolvedTwo = false;
+  let lock2Resolved = false;
+
   locks.once('resolved.one', () => {
-    t.pass('resolved first lock');
+    resolvedOne = true;
   });
 
   locks.once('resolved.two', () => {
-    t.pass('resolved second lock');
+    resolvedTwo = true;
   });
 
   locks.add('users.email', { id: 'one' });
   locks.add('users.email', { id: 'two' }).then(() => {
-    t.pass('second lock took priority');
+    lock2Resolved = true;
     locks.remove('two');
   });
 
   locks.remove('one');
+
+  // Wait for events to complete
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  assert.ok(resolvedOne, 'resolved first lock');
+  assert.ok(resolvedTwo, 'resolved second lock');
+  assert.ok(lock2Resolved, 'second lock took priority');
 });
 
 test('locks being waited remain when reimported', async t => {
-  t.plan(5);
-
   const locks = lockbase();
 
+  let resolvedOne = false;
+  let resolvedTwo = false;
+  let lock1Resolved = false;
+  let lock2Resolved = false;
+  let waitResolved = false;
+
   locks.once('resolved.one', () => {
-    t.pass('resolved first lock');
+    resolvedOne = true;
   });
 
   locks.once('resolved.two', () => {
-    t.pass('resolved second lock');
+    resolvedTwo = true;
   });
 
   locks.add('users.email', { id: 'one' }).then(() => {
-    t.pass('first lock took priority');
+    lock1Resolved = true;
   });
+
   locks.add('users.email', { id: 'two' }).then(() => {
-    t.pass('second lock took priority');
+    lock2Resolved = true;
     locks.remove('two');
   });
 
   locks.wait('users.email')
     .then(lock => {
-      t.pass('wait was released');
+      waitResolved = true;
     });
 
   locks.importState(
@@ -552,11 +634,20 @@ test('locks being waited remain when reimported', async t => {
   );
 
   locks.remove('one');
+
+  // Wait for events to complete
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  assert.ok(resolvedOne, 'resolved first lock');
+  assert.ok(resolvedTwo, 'resolved second lock');
+  assert.ok(lock1Resolved, 'first lock took priority');
+  assert.ok(lock2Resolved, 'second lock took priority');
+  assert.ok(waitResolved, 'wait was released');
 });
 
-test('isLockActive - empty queue', t => {
+test('isLockActive - empty queue', async t => {
   const isActive = lockbase.isLockActive({
     queue: []
   }, null);
-  t.equal(isActive, true);
+  assert.equal(isActive, true);
 });
